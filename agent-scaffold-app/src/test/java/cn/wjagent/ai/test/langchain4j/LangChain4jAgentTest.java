@@ -16,19 +16,23 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LangChain4jAgentTest {
 
-    /** Agent 可用的运维工具 */
+    /** Agent 可用的运维工具（有状态 mock：重启后状态变为 running） */
     static class OpsTools {
+
+        private final java.util.Map<String, String> serviceStatus = new java.util.HashMap<>(
+                java.util.Map.of("nginx", "running", "mysql", "stopped"));
 
         @Tool("查询指定服务的运行状态，返回 running/stopped")
         public String getServiceStatus(@P("服务名，如 nginx、mysql") String serviceName) {
-            log.info("[Tool 被调用] getServiceStatus({})", serviceName);
-            // mock：模拟 nginx 运行中、其余停止
-            return "nginx".equalsIgnoreCase(serviceName) ? "running" : "stopped";
+            String status = serviceStatus.getOrDefault(serviceName.toLowerCase(), "stopped");
+            log.info("[Tool 被调用] getServiceStatus({}) -> {}", serviceName, status);
+            return status;
         }
 
         @Tool("重启指定服务，返回操作结果")
         public String restartService(@P("服务名") String serviceName) {
             log.info("[Tool 被调用] restartService({})", serviceName);
+            serviceStatus.put(serviceName.toLowerCase(), "running");
             return "服务 " + serviceName + " 重启成功";
         }
     }

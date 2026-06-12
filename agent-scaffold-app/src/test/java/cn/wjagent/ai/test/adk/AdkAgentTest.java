@@ -26,15 +26,17 @@ import java.util.Map;
 @Slf4j
 public class AdkAgentTest {
 
-    /** Agent 可用的运维工具 */
+    /** Agent 可用的运维工具（有状态 mock：重启后状态变为 running） */
     public static class OpsTools {
+
+        private final java.util.Map<String, String> serviceStatus = new java.util.HashMap<>(
+                java.util.Map.of("nginx", "running", "mysql", "stopped"));
 
         @Schema(description = "查询指定服务的运行状态，返回 running/stopped")
         public Map<String, Object> getServiceStatus(
                 @Schema(name = "serviceName", description = "服务名，如 nginx、mysql") String serviceName) {
-            log.info("[Tool 被调用] getServiceStatus({})", serviceName);
-            // mock：模拟 nginx 运行中、其余停止
-            String status = "nginx".equalsIgnoreCase(serviceName) ? "running" : "stopped";
+            String status = serviceStatus.getOrDefault(serviceName.toLowerCase(), "stopped");
+            log.info("[Tool 被调用] getServiceStatus({}) -> {}", serviceName, status);
             return Map.of("serviceName", serviceName, "status", status);
         }
 
@@ -42,6 +44,7 @@ public class AdkAgentTest {
         public Map<String, Object> restartService(
                 @Schema(name = "serviceName", description = "服务名") String serviceName) {
             log.info("[Tool 被调用] restartService({})", serviceName);
+            serviceStatus.put(serviceName.toLowerCase(), "running");
             return Map.of("serviceName", serviceName, "result", "重启成功");
         }
     }

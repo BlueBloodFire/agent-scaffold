@@ -2,6 +2,12 @@
 
 > 每次完成一条指令/一次修改，立刻在此追加记录（最新在上）。
 
+## Agent 测试 mock 改为有状态 ✅（2026-06-12）
+
+- 三个 AgentTest（springai/langchain4j/adk）的 OpsTools mock 原来无状态：mysql 永远返回 stopped，导致 Agent 重启后复查仍 stopped，反复 重启→查询 循环 3 次才放弃（行为正确但日志易误读为出错）
+- 改为有状态 Map：`restartService` 后 `getServiceStatus` 返回 running，Agent 一次重启即收敛
+- `mvn test-compile` BUILD SUCCESS
+
 ## 清理脚手架来源痕迹 + 重写初始提交 ✅（2026-06-12）
 
 - 删除/改写所有 小傅哥/xiaofuge/xfg/bugstack 引用：README 重写、Dockerfile MAINTAINER 改 Jin、build.sh 注释、两处 package-info 链接、docker-compose 注释、数据库名 `xfg_frame_archetype` → `agent_scaffold`（三个 application-*.yml）
