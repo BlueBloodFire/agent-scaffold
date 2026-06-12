@@ -2,6 +2,13 @@
 
 > 每次完成一条指令/一次修改，立刻在此追加记录（最新在上）。
 
+## 清理脚手架来源痕迹 + 重写初始提交 ✅（2026-06-12）
+
+- 删除/改写所有 小傅哥/xiaofuge/xfg/bugstack 引用：README 重写、Dockerfile MAINTAINER 改 Jin、build.sh 注释、两处 package-info 链接、docker-compose 注释、数据库名 `xfg_frame_archetype` → `agent_scaffold`（三个 application-*.yml）
+- 删除文件：`docker-compose-environment-aliyun.yml`（xfg-studio 镜像源）、`docs/dev-ops/mysql/sql/xfg-frame-archetype.sql`（脚手架演示数据）
+- `git commit --amend` 重写根提交（85ba903）：作者仅 Jin，去掉 Co-Authored-By 落款，force push
+- TestApiConfig 提交占位符 key；真实 key 仅保留在本地工作区（未提交状态，**勿 git add 此文件的 key 改动**）
+
 ## 项目初始化 ✅（2026-06-12）
 
 **工程基础**：DDD 六模块脚手架（api/app/domain/infrastructure/trigger/types，包根 `cn.wjagent.ai`，Spring Boot 3.4.3 / JDK 17）。
