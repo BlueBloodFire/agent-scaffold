@@ -2,6 +2,20 @@
 
 > 每次完成一条指令/一次修改，立刻在此追加记录（最新在上）。
 
+## ChatService 对话层修复 ✅（2026-06-21）
+
+**新增文件**（用户添加，本次修复编译错误）
+- `IChatService`（`domain/agent/service/`）：对话服务接口，定义 `queryAiAgentConfigList / createSession / handleMessage（3 重载）/ handleMessageStream`
+- `ChatService`（`domain/agent/service/chat/`）：接口实现，用 `ConcurrentHashMap<userId, sessionId>` 缓存会话，支持文本/文件/InlineData 多模态消息，委托 ADK `InMemoryRunner` 执行
+- `ChatCommandEntity`（`domain/agent/model/entity/`）：多模态消息实体，含 `Content.Text / Content.File / Content.InlineData` 三个内部类，提供 `buildSessionCommand / buildChatCommand` 辅助方法
+
+**修复文件**
+- `ChatService`：补全所有缺失 import（jakarta.annotation.Resource、genai Content/Part、adk Event/InMemoryRunner/Session、rxjava Flowable、java.util.\*）；修正 `AiAgentAutoConfigProperties` 包路径为 `model/valobj/properties/`
+- `DefaultArmoryFactory`：注入 `ApplicationContext`，新增 `getAiAgentRegisterVO(String agentId)` — 按 agentId 从 Spring 容器获取 `RunnerNode` 注册的 `AiAgentRegisterVO` bean，未找到时返回 `null`
+- `ResponseCode`：新增 `E0001("E0001", "Agent不存在")` 枚举值
+
+**验证**：`mvn compile` BUILD SUCCESS
+
 ## 插件增强 + Prometheus 监控插件 ✅（2026-06-21）
 
 **新增文件**

@@ -31,7 +31,7 @@
 |---|------|------|------|------|
 | A1 | Agent 配置化装配 | YAML 定义 agent（模型/指令/工具），启动时责任链装配 | 中 | ✅ 已完成 |
 | A2 | 统一 Agent 抽象层 | 屏蔽三框架差异的统一 Agent 接口（chat/stream/tools） | 高 | 待实现 |
-| A3 | SSE 流式对话接口 | trigger 层暴露 /chat_stream，推送工具调用/文本事件 | 中 | 待实现 |
+| A3 | SSE 流式对话接口 | trigger 层暴露 /chat_stream，推送工具调用/文本事件 | 中 | 🔄 Domain 层已完成（IChatService + ChatService），trigger 接口待实现 |
 | A4 | MCP 工具接入 | SSE/Stdio/Local 三种 MCP 类型，枚举工厂路由，Local 支持 @Tool Bean | 中 | ✅ 已完成 |
 | A4+ | 插件体系 | BasePlugin 扩展：MyLogPlugin(LoggingPlugin)、MyTestPlugin(回调日志)、PrometheusPlugin(Micrometer 监控) | 中 | ✅ 已完成 |
 | A5 | 多 Agent 编排 | ADK Sequential/Parallel/Loop 三种 workflow 节点，index 递进流转 | 高 | ✅ 已完成 |

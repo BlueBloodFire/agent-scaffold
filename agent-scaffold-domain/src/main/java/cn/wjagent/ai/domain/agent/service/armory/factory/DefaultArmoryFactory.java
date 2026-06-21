@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ser.Serializers;
 import com.google.adk.agents.BaseAgent;
 import com.google.adk.agents.SequentialAgent;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,10 +28,19 @@ public class DefaultArmoryFactory {
     @Resource
     private RootNode rootNode;
 
+    @Autowired
+    private ApplicationContext applicationContext;
+
     public StrategyHandler<ArmoryCommandEntity, DynamicContext, AiAgentRegisterVO> armoryStrategyHandler() {
-
         return rootNode;
+    }
 
+    public AiAgentRegisterVO getAiAgentRegisterVO(String agentId) {
+        try {
+            return applicationContext.getBean(agentId, AiAgentRegisterVO.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Data
