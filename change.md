@@ -2,6 +2,33 @@
 
 > 每次完成一条指令/一次修改，立刻在此追加记录（最新在上）。
 
+## 插件增强 + Prometheus 监控插件 ✅（2026-06-21）
+
+**新增文件**
+- `PrometheusPlugin`（`factory/matter/plugin/`）：基于 Micrometer 的 Prometheus 监控插件，拦截 `beforeAgentCallback / afterAgentCallback / beforeModelCallback / afterModelCallback`，记录：
+  - `agent.invocation.count{agent_name}` — Agent 调用计数
+  - `agent.invocation.duration{agent_name}` — Agent 执行耗时（Timer）
+  - `model.call.count{model}` — 模型调用计数
+  - `model.call.duration` — 模型调用耗时（Timer）
+  - 用 `ConcurrentHashMap<threadId, Timer.Sample>` 保证并行 Agent 各自独立计时
+
+**修复文件**
+- `MyTestPlugin`：补全所有缺失 import（`InvocationContext/CallbackContext/BaseAgent/LlmRequest/LlmResponse/Content/Maybe`）；加 `@Slf4j`；修正 `beforeModelCallback` 参数为 ADK 0.4.0 实际签名 `(CallbackContext, LlmRequest)`（非 `LlmRequest.Builder`，`Builder` 是 1.2.0 API）；删除多余构造器
+
+**pom 变更**
+- `agent-scaffold-domain/pom.xml`：添加 `micrometer-core`（`PrometheusPlugin` 编译期需要 `MeterRegistry`）
+- `agent-scaffold-app/pom.xml`：添加 `spring-boot-starter-actuator` + `micrometer-registry-prometheus`
+
+**配置变更**
+- `application-dev.yml`：新增 `management.endpoints.web.exposure.include: prometheus,health,info` 及应用标签
+- `test-agent.yml`：runner 增加 `plugin-name-list: [myLogPlugin, prometheusPlugin]`
+
+**测试**
+- `test_plugin_log`：验证插件链路正常挂载，日志中可见 Agent/Model 拦截日志
+- `test_plugin_prometheus_metrics`：运行后从 `MeterRegistry` 断言 `agent.invocation.count > 0`、`agent.invocation.duration`、`model.call.count > 0`、`model.call.duration` 均存在
+
+**关键坑**：ADK `0.4.0` 的 `beforeModelCallback` 参数是 `LlmRequest`，`1.2.0` 才改为 `LlmRequest.Builder`；Maven 本地仓库实际在 `E:\apache-maven-3.8.8\repository`，非默认 `.m2`
+
 ## MCP Local 工具调用测试用例 ✅（2026-06-21）
 
 - `AiAgentAutoConfigTest` 新增两个 MCP 测试方法：

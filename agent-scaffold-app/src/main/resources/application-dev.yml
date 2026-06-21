@@ -39,6 +39,16 @@ spring:
 #  mapper-locations: classpath:/mybatis/mapper/*.xml
 #  config-location:  classpath:/mybatis/config/mybatis-config.xml
 
+# Prometheus 监控
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,info
+  metrics:
+    tags:
+      application: agent-scaffold
+
 # 日志
 logging:
   level:

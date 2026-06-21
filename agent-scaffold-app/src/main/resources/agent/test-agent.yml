@@ -78,3 +78,6 @@ ai:
                   - LoopSummaryAgent
             runner:
               agent-name: RootPipelineAgent
+              plugin-name-list:
+                - myLogPlugin
+                - prometheusPlugin
