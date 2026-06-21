@@ -18,6 +18,7 @@ import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class DefaultArmoryFactory {
@@ -41,13 +42,19 @@ public class DefaultArmoryFactory {
         // 添加openAi节点设置
         private OpenAiApi openAiApi;
 
-        private SequentialAgent sequentialAgent;
+        /**
+         * 原子安全的递进步骤
+         */
+        private AtomicInteger currentStepIndex = new AtomicInteger(0);
+
+        /**
+         * 当前的智能体
+         */
+        private AiAgentConfigTableVO.Module.AgentWorkflow currentAgentWorkflow;
 
         private Map<String, BaseAgent> agentGroup = new HashMap<>();
 
         private Map<String, Object> dataObjects = new HashMap<>();
-
-        private List<AiAgentConfigTableVO.Module.AgentWorkflow> agentWorkflows = new ArrayList<>();
 
         public <T> void setValue(String key, T value) {
             dataObjects.put(key, value);
@@ -70,6 +77,14 @@ public class DefaultArmoryFactory {
                 }
             }
             return agents;
+        }
+
+        public void addCurrentStepIndex() {
+            currentStepIndex.incrementAndGet();
+        }
+
+        public int getCuurentStepIndex() {
+            return currentStepIndex.get();
         }
     }
 }

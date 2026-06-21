@@ -8,6 +8,7 @@ import cn.wjagent.ai.domain.agent.service.armory.AbstractArmorySupport;
 import cn.wjagent.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
 import com.google.adk.agents.LlmAgent;
 import com.google.adk.models.springai.SpringAI;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,9 @@ import java.util.concurrent.TimeoutException;
 @Service
 @Slf4j
 public class AgentNode extends AbstractArmorySupport {
+
+    @Resource
+    private AgentWorkflowNode agentWorkflowNode;
 
     @Override
     protected void multiThread(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws ExecutionException, InterruptedException, TimeoutException {
@@ -51,6 +55,6 @@ public class AgentNode extends AbstractArmorySupport {
 
     @Override
     public StrategyHandler<ArmoryCommandEntity, DefaultArmoryFactory.DynamicContext, AiAgentRegisterVO> get(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
-        return defaultStrategyHandler;
+        return agentWorkflowNode;
     }
 }

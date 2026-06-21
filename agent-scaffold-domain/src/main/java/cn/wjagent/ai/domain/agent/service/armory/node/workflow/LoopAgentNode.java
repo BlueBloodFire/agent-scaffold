@@ -9,7 +9,6 @@ import cn.wjagent.ai.domain.agent.service.armory.AbstractArmorySupport;
 import cn.wjagent.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
 import com.google.adk.agents.BaseAgent;
 import com.google.adk.agents.LoopAgent;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -21,12 +20,6 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 public class LoopAgentNode extends AbstractArmorySupport {
 
-    @Resource
-    private ParallelAgentNode parallelAgentNode;
-
-    @Resource
-    private SequentialAgentNode sequentialAgentNode;
-
     @Override
     protected void multiThread(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws ExecutionException, InterruptedException, TimeoutException {
         super.multiThread(requestParameter, dynamicContext);
@@ -37,19 +30,18 @@ public class LoopAgentNode extends AbstractArmorySupport {
 
         log.info("Ai Agent 装配操作 - LoopAgentNode");
 
-        List<AiAgentConfigTableVO.Module.AgentWorkflow> agentWorkflows = dynamicContext.getAgentWorkflows();
-        AiAgentConfigTableVO.Module.AgentWorkflow agentWorkflow = agentWorkflows.remove(0);
+        AiAgentConfigTableVO.Module.AgentWorkflow currentAgentWorkflow = dynamicContext.getCurrentAgentWorkflow();
 
-        List<BaseAgent> subAgents = dynamicContext.queryAgentList(agentWorkflow.getSubAgents());
+        List<BaseAgent> subAgents = dynamicContext.queryAgentList(currentAgentWorkflow.getSubAgents());
 
         LoopAgent loopAgent = LoopAgent.builder()
-                .name(agentWorkflow.getName())
-                .description(agentWorkflow.getDescription())
+                .name(currentAgentWorkflow.getName())
+                .description(currentAgentWorkflow.getDescription())
                 .subAgents(subAgents)
-                .maxIterations(agentWorkflow.getMaxIterations())
+                .maxIterations(currentAgentWorkflow.getMaxIterations())
                 .build();
 
-        dynamicContext.getAgentGroup().put(agentWorkflow.getName(), loopAgent);
+        dynamicContext.getAgentGroup().put(currentAgentWorkflow.getName(), loopAgent);
 
         return router(requestParamter, dynamicContext);
     }
@@ -57,26 +49,7 @@ public class LoopAgentNode extends AbstractArmorySupport {
     @Override
     public StrategyHandler<ArmoryCommandEntity, DefaultArmoryFactory.DynamicContext, AiAgentRegisterVO> get(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
 
-        List<AiAgentConfigTableVO.Module.AgentWorkflow> agentWorkflows = dynamicContext.getAgentWorkflows();
-        if (null == agentWorkflows || agentWorkflows.isEmpty()) {
-            return defaultStrategyHandler;
-        }
+        return getBean("agentWorkflowNode");
 
-        AiAgentConfigTableVO.Module.AgentWorkflow agentWorkflow = agentWorkflows.get(0);
-
-        String type = agentWorkflow.getType();
-        AgentTypeEnum agentTypeEnum = AgentTypeEnum.fromType(type);
-
-        if(null == agentTypeEnum) {
-            throw new RuntimeException("agentWorKflow type is error!");
-        }
-
-        String node = agentTypeEnum.getNode();
-
-        return switch (node) {
-            case "parallelAgentNode" -> getBean(parallelAgentNode);
-            case "sequentialAgentNode" -> getBean(sequentialAgentNode);
-            default -> defaultStrategyHandler;
-        };
     }
 }

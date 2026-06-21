@@ -7,87 +7,74 @@ ai:
           agent:
             agent-id: 100001
             agent-name: 测试智能体01
-            agent-desc: 一个测试的智能体
+            agent-desc: 测试 Sequential / Parallel / Loop 三种节点流转
           module:
             ai-api:
-              base-url: https://apis.itedus.cn
-              api-key: ${AI_API_KEY}
+              base-url: https://api.deepseek.com
+              api-key: sk-1e03bd81f3d241b4af9cd71e9a628ea8
               completions-path: v1/chat/completions
               embeddings-path: v1/embeddings
             chat-model:
-              model: gpt-4.1
-              tool-mcp-list:
-                - sse:
-                    name: baidu-search
-                    base-uri: http://appbuilder.baidu.com/v2/ai_search/mcp/
-                    sse-endpoint: sse?api_key=${BAIDU_SEARCH_API_KEY}
-                    request-timeout: 5000
-                - sse:
-                    name: baidu-map
-                    base-uri: https://mcp.map.baidu.com/
-                    sse-endpoint: sse?ak=${BAIDU_MAP_AK}
-                    request-timeout: 5000
+              model: deepseek-v4-flash
+              tool-mcp-list: []
             agents:
-              - name: CodeWriterAgent
-                description: Writes initial Java code based on a specification.
+              - name: WriterAgent
+                description: 代码编写智能体
                 instruction: |
-                  You are a Java Code Generator.
-                  Based *only* on the user's request, write Java code that fulfills the requirement.
-                  Output *only* the complete Java code block, enclosed in triple backticks (```java ... ```).
-                output-key: generated_code
-              - name: CodeReviewerAgent
-                description: Reviews code and provides feedback.
+                  你是一个 Java 代码编写助手。
+                  根据用户需求，编写简洁的 Java 代码实现，只输出代码块，不加额外说明。
+                output-key: written_code
+              - name: ReviewerAgent
+                description: 代码审查智能体
                 instruction: |
-                  You are an expert Java Code Reviewer.
-                  Your task is to provide constructive feedback on the provided code.
-                  
-                  **Code to Review:**
-                  ```java
-                  {generated_code}
-                  ```
-                  
-                  **Review Criteria:**
-                  1.  **Correctness:** Does the code work as intended? Are there logic errors?
-                  2.  **Readability:** Is the code clear and easy to understand? Follows Java style guidelines?
-                  3.  **Efficiency:** Is the code reasonably efficient? Any obvious performance bottlenecks?
-                  4.  **Edge Cases:** Does the code handle potential edge cases or invalid inputs gracefully?
-                  5.  **Best Practices:** Does the code follow common Java best practices?
-                  
-                  **Output:**
-                  Provide your feedback as a concise, bulleted list. Focus on the most important points for improvement.
-                  If the code is excellent and requires no changes, simply state: "No major issues found."
-                  Output *only* the review comments or the "No major issues" statement.
-                output-key: review_comments
-              - name: CodeRefactorerAgent
-                description: Refactors code based on review comments.
+                  你是一个代码审查助手。
+                  审查以下代码并给出简短的改进建议（不超过3条）：
+                  {written_code}
+                output-key: review_result
+              - name: RefactorerAgent
+                description: 代码重构智能体
                 instruction: |
-                  You are a Java Code Refactoring AI.
-                  Your goal is to improve the given Java code based on the provided review comments.
-                  
-                  **Original Code:**
-                  ```java
-                  {generated_code}
-                  ```
-                  
-                  **Review Comments:**
-                  {review_comments}
-                  
-                  **Task:**
-                  Carefully apply the suggestions from the review comments to refactor the original code.
-                  If the review comments state "No major issues found," return the original code unchanged.
-                  Ensure the final code is complete, functional, and includes necessary imports and docstrings.
-                  
-                  **Output:**
-                  Output *only* the final, refactored Java code block, enclosed in triple backticks (```java ... ```).
-                  Do not add any other text before or after the code block.
+                  你是一个代码重构助手。
+                  根据以下审查意见对代码进行重构，只输出最终代码块：
+                  原始代码：{written_code}
+                  审查意见：{review_result}
                 output-key: refactored_code
+              - name: SummaryAgent
+                description: 结果总结智能体
+                instruction: |
+                  你是一个总结助手。
+                  用一句话总结本次代码生成的最终结果：{refactored_code}
+                output-key: summary
             agent-workflows:
+              # 第一步：Sequential —— 串行执行 Writer -> Reviewer -> Refactorer
               - type: sequential
                 name: CodePipelineAgent
-                description: Executes a sequence of code writing, reviewing, and refactoring.
+                description: 串行代码流水线（编写→审查→重构）
                 sub-agents:
-                  - CodeWriterAgent
-                  - CodeReviewerAgent
-                  - CodeRefactorerAgent
+                  - WriterAgent
+                  - ReviewerAgent
+                  - RefactorerAgent
+              # 第二步：Parallel —— 并行执行 Writer 和 Reviewer（验证并行节点）
+              - type: parallel
+                name: ParallelAnalysisAgent
+                description: 并行分析（Writer 与 Reviewer 同时运行）
+                sub-agents:
+                  - WriterAgent
+                  - ReviewerAgent
+              # 第三步：Loop —— 循环执行 SummaryAgent，迭代2次（验证循环节点）
+              - type: loop
+                name: LoopSummaryAgent
+                description: 循环总结（最多迭代2次）
+                sub-agents:
+                  - SummaryAgent
+                max-iterations: 2
+              # 第四步：Sequential —— 将上面三个 workflow agent 串起来作为根入口
+              - type: sequential
+                name: RootPipelineAgent
+                description: 根流水线，依次执行串行、并行、循环三个子流程
+                sub-agents:
+                  - CodePipelineAgent
+                  - ParallelAnalysisAgent
+                  - LoopSummaryAgent
             runner:
-              agent-name: CodePipelineAgent
+              agent-name: RootPipelineAgent

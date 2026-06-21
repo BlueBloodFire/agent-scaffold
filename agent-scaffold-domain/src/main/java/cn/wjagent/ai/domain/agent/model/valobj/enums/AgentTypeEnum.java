@@ -2,12 +2,10 @@ package cn.wjagent.ai.domain.agent.model.valobj.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Getter
 @AllArgsConstructor
-@NoArgsConstructor
-public class AgentTypeEnum {
+public enum AgentTypeEnum {
 
     Loop("循环执行","loop","loopAgentNode"),
     Parallel("并行执行","parallel","parallelAgentNode"),
@@ -33,3 +31,4 @@ public class AgentTypeEnum {
     }
 
 }
+

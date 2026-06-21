@@ -2,6 +2,61 @@
 
 > 每次完成一条指令/一次修改，立刻在此追加记录（最新在上）。
 
+## MCP Local 工具调用测试用例 ✅（2026-06-21）
+
+- `AiAgentAutoConfigTest` 新增两个 MCP 测试方法：
+  - `test_mcp_tool_time`：让 LLM 调用 `getCurrentTime` 工具，断言有输出
+  - `test_mcp_tool_add`：让 LLM 调用 `add(18,24)`，断言输出含 `42`
+- 两个用例均使用 agent-id `200001`（`mcp-test-agent.yml`）
+
+## MCP 增强功能 & 枚举重构 ✅（2026-06-21）
+
+**新增文件**
+- `McpTypeEnum`（`model/valobj/enums/`）：LOCAL/SSE/STDIO 三值，每值持有 `beanName`；`fromToolMcp()` 静态方法替代 if-else 判断
+- `mcp-test-agent.yml`（`resources/agent/`）：agent-id=200001，`tool-mcp-list` 配置 Local MCP `myTestMcpService`
+- `application-dev.yml`：`spring.config.import` 新增 `mcp-test-agent.yml`
+
+**修改文件**
+- `AiAgentConfigTableVO.ToolMcp`：补充缺失的 `LocalParameters` 内部类（`name` 字段）
+- `DefaultMcpClientFactory`：删除三个 `@Resource` 字段 + if-else，改用 `McpTypeEnum` + `ApplicationContextAware` 按 beanName 懒获取服务
+- `LocalToolMcpCreateService`：修复 `org.jvnet.hk2` 错误 import → Spring `@Service`；补全所有缺失 import；改用 `MethodToolCallbackProvider.builder().toolObjects()` 包装本地 Bean；加 `@Slf4j`
+- `SSEToolMcpCreateService`：加 `@Slf4j`；显式 `@Service("sseToolMcpCreateService")`（避免双大写前缀导致的 bean 名错误）
+- `StdioToolMcpCreateService`：加 `@Slf4j`；显式 `@Service("stdioToolMcpCreateService")`
+- `ChatModelNode`：补 `ToolCallback`、`ToolMcpCreateService` import；加 `toolMcpList != null` 判空；删除无用的 `createMcpSyncClient` 私有方法及相关 MCP/Jackson import
+- `MyTestMcpService`：从空类改为 `@Component("myTestMcpService")`，含 `@Tool` 注解的 `getCurrentTime()` 和 `add()` 两个工具方法
+
+**编译问题**：PowerShell `Out-File` 写出 UTF-16 BOM，Java 编译器报"非法字符 \\ufeff"；改用 `[System.Text.UTF8Encoding]::new($false)` 写入后解决，`mvn compile` BUILD SUCCESS
+
+## Agent Workflow 节点流转重构 ✅（2026-06-21）
+
+- 用户重写了 `AgentWorkflowNode`、`LoopAgentNode`、`ParallelAgentNode`、`SequentialAgentNode`
+- 流转方式从 `agentWorkflows.remove(0)` 列表变更改为 `AtomicInteger currentStepIndex` 索引递进
+- `DefaultArmoryFactory.DynamicContext` 新增 `currentStepIndex`（AtomicInteger）、`currentAgentWorkflow`、`addCurrentStepIndex()`
+- 三个 workflow 节点的 `get()` 均返回 `getBean("agentWorkflowNode")` 实现循环回路（取代 `@Resource` 兄弟节点注入，解决循环依赖）
+- 修复 `AgentTypeEnum`：从 `class` 改为 `enum`，删除 `@NoArgsConstructor`（Lombok 与 enum 冲突）
+- `test-agent.yml`：新增 sequential / parallel / loop / root 四条 agent-workflow 配置，覆盖三种节点类型
+
+## Agent 配置化装配节点链 ✅（2026-06-21）
+
+**提交**：`节点装配`（推送至 GitHub master）
+
+**责任链节点**（`domain/service/armory/node/`）：
+- `RootNode → AiApiNode → ChatModelNode → AgentNode → AgentWorkflowNode → [SequentialAgentNode | ParallelAgentNode | LoopAgentNode] → RunnerNode`
+- 每个节点实现 `AbstractArmorySupport`（extends `AbstractMultiThreadStrategyRouter`）
+- `DefaultArmoryFactory.DynamicContext` 贯穿全链，携带 `OpenAiApi`、`ChatModel`、`agentGroup`、`runner` 等状态
+
+**MCP 骨架**（`domain/service/armory/mcp/`）：
+- `ToolMcpCreateService` 接口 + SSE/Stdio/Local 三个实现（此阶段为骨架，完整实现见后续条目）
+- `DefaultMcpClientFactory` 工厂
+
+**配置**：
+- `AiAgentConfigTableVO`：完整 VO 含 AiApi/ChatModel/Agent/AgentWorkflow/Runner 五个内部类
+- `test-agent.yml`：DeepSeek 配置（base-url/model/api-key），agent-id=100001
+
+**测试**：
+- `AiAgentAutoConfigTest.test_agent_register()`：验证 Bean 装配 + Runner 非空
+- `AiAgentAutoConfigTest.test_agent_pipeline()`：跑完整 pipeline，断言有最终输出
+
 ## Agent 测试 mock 改为有状态 ✅（2026-06-12）
 
 - 三个 AgentTest（springai/langchain4j/adk）的 OpsTools mock 原来无状态：mysql 永远返回 stopped，导致 Agent 重启后复查仍 stopped，反复 重启→查询 循环 3 次才放弃（行为正确但日志易误读为出错）

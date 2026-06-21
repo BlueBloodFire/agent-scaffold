@@ -31,6 +31,9 @@ public class AgentWorkflowNode extends AbstractArmorySupport {
     @Resource
     private SequentialAgentNode sequentialAgentNode;
 
+    @Resource
+    private RunnerNode runnerNode;
+
     @Override
     protected void multiThread(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws ExecutionException, InterruptedException, TimeoutException {
         super.multiThread(requestParameter, dynamicContext);
@@ -43,11 +46,18 @@ public class AgentWorkflowNode extends AbstractArmorySupport {
         AiAgentConfigTableVO aiAgentConfigTableVO = requestParamter.getAiAgentConfigTableVO();
         List<AiAgentConfigTableVO.Module.AgentWorkflow> agentWorkflows = aiAgentConfigTableVO.getModule().getAgentWorkflows();
 
-        if (null == agentWorkflows || agentWorkflows.isEmpty()) {
-            throw new RuntimeException("agentWorkflows is null");
+        if (null == agentWorkflows || agentWorkflows.isEmpty() || dynamicContext.getCurrentStepIndex().get() >= agentWorkflows.size()) {
+            // 设置结果值
+            dynamicContext.setCurrentAgentWorkflow(null);
+            // 路由下节点
+            return router(requestParamter, dynamicContext);
         }
 
-        dynamicContext.setAgentWorkflows(agentWorkflows);
+        // 设置当前判断流程对象
+        dynamicContext.setCurrentAgentWorkflow(agentWorkflows.get(dynamicContext.getCurrentStepIndex().get()));
+
+        // 步骤值增加
+        dynamicContext.addCurrentStepIndex();
 
         return router(requestParamter, dynamicContext);
 
@@ -56,10 +66,13 @@ public class AgentWorkflowNode extends AbstractArmorySupport {
     @Override
     public StrategyHandler<ArmoryCommandEntity, DefaultArmoryFactory.DynamicContext, AiAgentRegisterVO> get(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
 
-        List<AiAgentConfigTableVO.Module.AgentWorkflow> agentWorkflows = dynamicContext.getAgentWorkflows();
-        AiAgentConfigTableVO.Module.AgentWorkflow agentWorkflow = agentWorkflows.get(0);
+        AiAgentConfigTableVO.Module.AgentWorkflow currentAgentWorkflow = dynamicContext.getCurrentAgentWorkflow();
 
-        String type = agentWorkflow.getType();
+        if (null == currentAgentWorkflow) {
+            return runnerNode;
+        }
+
+        String type = currentAgentWorkflow.getType();
         AgentTypeEnum agentTypeEnum = AgentTypeEnum.fromType(type);
 
         if(null == agentTypeEnum) {
@@ -72,7 +85,7 @@ public class AgentWorkflowNode extends AbstractArmorySupport {
             case "loopAgentNode" -> loopAgentNode;
             case "parallelAgentNode" -> parallelAgentNode;
             case "sequentialAgentNode" -> sequentialAgentNode;
-            default -> defaultStrategyHandler;
+            default -> runnerNode;
         };
     }
 }

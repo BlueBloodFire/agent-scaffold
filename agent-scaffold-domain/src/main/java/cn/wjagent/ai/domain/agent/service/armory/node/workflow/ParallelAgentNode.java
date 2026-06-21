@@ -10,7 +10,6 @@ import cn.wjagent.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
 import com.google.adk.agents.BaseAgent;
 import com.google.adk.agents.LoopAgent;
 import com.google.adk.agents.ParallelAgent;
-import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -22,12 +21,6 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 public class ParallelAgentNode extends AbstractArmorySupport {
 
-    @Resource
-    private LoopAgentNode loopAgentNode;
-
-    @Resource
-    private SequentialAgentNode sequentialAgentNode;
-
     @Override
     protected void multiThread(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws ExecutionException, InterruptedException, TimeoutException {
         super.multiThread(requestParameter, dynamicContext);
@@ -38,44 +31,25 @@ public class ParallelAgentNode extends AbstractArmorySupport {
 
         log.info("Ai Agent 装配操作 - ParallelAgentNode");
 
-        List<AiAgentConfigTableVO.Module.AgentWorkflow> agentWorkflows = dynamicContext.getAgentWorkflows();
-        AiAgentConfigTableVO.Module.AgentWorkflow agentWorkflow = agentWorkflows.remove(0);
+        AiAgentConfigTableVO.Module.AgentWorkflow currentAgentWorkflow = dynamicContext.getCurrentAgentWorkflow();
 
-        List<BaseAgent> subAgents = dynamicContext.queryAgentList(agentWorkflow.getSubAgents());
+        List<BaseAgent> subAgents = dynamicContext.queryAgentList(currentAgentWorkflow.getSubAgents());
 
         ParallelAgent parallelAgent = ParallelAgent.builder()
-                .name(agentWorkflow.getName())
-                .description(agentWorkflow.getDescription())
+                .name(currentAgentWorkflow.getName())
+                .description(currentAgentWorkflow.getDescription())
                 .subAgents(subAgents)
                 .build();
 
-        dynamicContext.getAgentGroup().put(agentWorkflow.getName(), parallelAgent);
+        dynamicContext.getAgentGroup().put(currentAgentWorkflow.getName(), parallelAgent);
 
         return router(requestParamter, dynamicContext);
     }
 
     @Override
     public StrategyHandler<ArmoryCommandEntity, DefaultArmoryFactory.DynamicContext, AiAgentRegisterVO> get(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
-        List<AiAgentConfigTableVO.Module.AgentWorkflow> agentWorkflows = dynamicContext.getAgentWorkflows();
-        if (null == agentWorkflows || agentWorkflows.isEmpty()) {
-            return defaultStrategyHandler;
-        }
 
-        AiAgentConfigTableVO.Module.AgentWorkflow agentWorkflow = agentWorkflows.get(0);
+        return getBean("agentWorkflowNode");
 
-        String type = agentWorkflow.getType();
-        AgentTypeEnum agentTypeEnum = AgentTypeEnum.fromType(type);
-
-        if(null == agentTypeEnum) {
-            throw new RuntimeException("agentWorKflow type is error!");
-        }
-
-        String node = agentTypeEnum.getNode();
-
-        return switch (node) {
-            case "loopAgentNode" -> getBean(loopAgentNode);
-            case "sequentialAgentNode" -> getBean(sequentialAgentNode);
-            default -> defaultStrategyHandler;
-        };
     }
 }
