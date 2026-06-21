@@ -14,9 +14,12 @@ thread:
 
 # 数据库配置；启动时配置数据库资源信息
 spring:
+  config:
+    import:
+      - classpath:agent/test-agent.yml
   datasource:
     username: root
-    password: 123456
+    password: wangjin@test
     url: jdbc:mysql://127.0.0.1:3306/agent_scaffold?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&useSSL=true
     driver-class-name: com.mysql.cj.jdbc.Driver
   hikari:

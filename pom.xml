@@ -36,8 +36,16 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <google.adk.version>1.2.0</google.adk.version>
     </properties>
+
+    <developers>
+        <developer>
+            <name>xiaofuge</name>
+            <email>184172133@qq.com</email>
+            <organization>fuzhengwei</organization>
+            <organizationUrl>https://github.com/fuzhengwei</organizationUrl>
+        </developer>
+    </developers>
 
     <licenses>
         <license>
@@ -108,15 +116,58 @@
                 <version>1.15</version>
             </dependency>
 
-            <!-- Spring AI https://central.sonatype.com/artifact/org.springframework.ai/spring-ai-bom -->
+            <dependency>
+                <groupId>com.google.adk</groupId>
+                <artifactId>google-adk</artifactId>
+                <version>0.4.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.adk</groupId>
+                <artifactId>google-adk-dev</artifactId>
+                <version>0.4.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.adk</groupId>
+                <artifactId>google-adk-spring-ai</artifactId>
+                <version>0.4.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.adk.samples</groupId>
+                <artifactId>google-adk-sample-helloworld</artifactId>
+                <version>0.4.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.adk</groupId>
+                <artifactId>google-adk-contrib-langchain4j</artifactId>
+                <version>0.2.0</version>
+            </dependency>
+
+            <!--            <dependency>-->
+            <!--                <groupId>dev.langchain4j</groupId>-->
+            <!--                <artifactId>langchain4j-core</artifactId>-->
+            <!--                <version>1.4.0</version>-->
+            <!--            </dependency>-->
+
+            <!--            <dependency>-->
+            <!--                <groupId>dev.langchain4j</groupId>-->
+            <!--                <artifactId>langchain4j-open-ai</artifactId>-->
+            <!--                <version>1.4.0</version>-->
+            <!--            </dependency>-->
+
+            <!-- spring ai 1.1.0 https://central.sonatype.com/artifact/org.springframework.ai/spring-ai-bom -->
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
-                <version>1.1.5</version>
+                <version>1.1.0-M3</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- LangChain4j https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-bom -->
+
+            <!-- langchain4j https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-bom -->
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-bom</artifactId>
@@ -124,17 +175,12 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Google ADK https://github.com/google/adk-java -->
+
+            <!-- 设计模式框架 -->
             <dependency>
-                <groupId>com.google.adk</groupId>
-                <artifactId>google-adk</artifactId>
-                <version>${google.adk.version}</version>
-            </dependency>
-            <!-- ADK ←→ Spring AI ChatModel 桥接（支持 OpenAI 兼容接口接入 ADK） -->
-            <dependency>
-                <groupId>com.google.adk</groupId>
-                <artifactId>google-adk-spring-ai</artifactId>
-                <version>${google.adk.version}</version>
+                <groupId>cn.bugstack.wrench</groupId>
+                <artifactId>xfg-wrench-starter-design-framework</artifactId>
+                <version>3.0.0</version>
             </dependency>
 
             <!-- 工程模块 -->
@@ -201,21 +247,21 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <java_jvm>-Xms1G -Xmx1G -server  -XX:MaxPermSize=256M -Xss256K -Dspring.profiles.active=test -XX:+DisableExplicitGC -XX:+UseG1GC  -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/export/Logs/agent-scaffold-boot -Xloggc:/export/Logs/agent-scaffold-boot/gc-agent-scaffold-boot.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps</java_jvm>
+                <java_jvm>-Xms1G -Xmx1G -server  -XX:MaxPermSize=256M -Xss256K -Dspring.profiles.active=test -XX:+DisableExplicitGC -XX:+UseG1GC  -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/export/Logs/ai-agent-scaffold-lite-boot -Xloggc:/export/Logs/ai-agent-scaffold-lite-boot/gc-ai-agent-scaffold-lite-boot.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps</java_jvm>
                 <profileActive>dev</profileActive>
             </properties>
         </profile>
         <profile>
             <id>test</id>
             <properties>
-                <java_jvm>-Xms1G -Xmx1G -server  -XX:MaxPermSize=256M -Xss256K -Dspring.profiles.active=test -XX:+DisableExplicitGC -XX:+UseG1GC  -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/export/Logs/agent-scaffold-boot -Xloggc:/export/Logs/agent-scaffold-boot/gc-agent-scaffold-boot.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps</java_jvm>
+                <java_jvm>-Xms1G -Xmx1G -server  -XX:MaxPermSize=256M -Xss256K -Dspring.profiles.active=test -XX:+DisableExplicitGC -XX:+UseG1GC  -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/export/Logs/ai-agent-scaffold-lite-boot -Xloggc:/export/Logs/ai-agent-scaffold-lite-boot/gc-ai-agent-scaffold-lite-boot.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps</java_jvm>
                 <profileActive>test</profileActive>
             </properties>
         </profile>
         <profile>
             <id>prod</id>
             <properties>
-                <java_jvm>-Xms6G -Xmx6G -server  -XX:MaxPermSize=256M -Xss256K -Dspring.profiles.active=release -XX:+DisableExplicitGC -XX:+UseG1GC  -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/export/Logs/fq-mall-activity-app -Xloggc:/export/Logs/agent-scaffold-boot/gc-agent-scaffold-boot.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps</java_jvm>
+                <java_jvm>-Xms6G -Xmx6G -server  -XX:MaxPermSize=256M -Xss256K -Dspring.profiles.active=release -XX:+DisableExplicitGC -XX:+UseG1GC  -XX:LargePageSizeInBytes=128m -XX:+UseFastAccessorMethods -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/export/Logs/fq-mall-activity-app -Xloggc:/export/Logs/ai-agent-scaffold-lite-boot/gc-ai-agent-scaffold-lite-boot.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps</java_jvm>
                 <profileActive>prod</profileActive>
             </properties>
         </profile>

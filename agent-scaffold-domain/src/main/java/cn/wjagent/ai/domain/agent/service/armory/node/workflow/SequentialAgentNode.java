@@ -1,0 +1,63 @@
+package cn.wjagent.ai.domain.agent.service.armory.node.workflow;
+
+import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
+import cn.wjagent.ai.domain.agent.model.entity.ArmoryCommandEntity;
+import cn.wjagent.ai.domain.agent.model.valobj.AiAgentConfigTableVO;
+import cn.wjagent.ai.domain.agent.model.valobj.AiAgentRegisterVO;
+import cn.wjagent.ai.domain.agent.service.armory.AbstractArmorySupport;
+import cn.wjagent.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
+import cn.wjagent.ai.domain.agent.service.armory.node.RunnerNode;
+import com.google.adk.agents.BaseAgent;
+import com.google.adk.agents.ParallelAgent;
+import com.google.adk.agents.SequentialAgent;
+import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+
+@Service("sequentialAgentNode")
+@Slf4j
+public class SequentialAgentNode extends AbstractArmorySupport {
+
+    @Resource
+    private RunnerNode runnerNode;
+
+    @Override
+    protected void multiThread(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws ExecutionException, InterruptedException, TimeoutException {
+        super.multiThread(requestParameter, dynamicContext);
+    }
+
+    @Override
+    protected AiAgentRegisterVO doApply(ArmoryCommandEntity requestParamter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
+        log.info("Ai Agent 装配操作 - SequentialAgentNode");
+
+        List<AiAgentConfigTableVO.Module.AgentWorkflow> agentWorkflows = dynamicContext.getAgentWorkflows();
+        AiAgentConfigTableVO.Module.AgentWorkflow agentWorkflow = agentWorkflows.remove(0);
+
+        List<BaseAgent> subAgents = dynamicContext.queryAgentList(agentWorkflow.getSubAgents());
+
+        SequentialAgent sequentialAgent = SequentialAgent.builder()
+                .name(agentWorkflow.getName())
+                .description(agentWorkflow.getDescription())
+                .subAgents(subAgents)
+                .build();
+
+        dynamicContext.getAgentGroup().put(agentWorkflow.getName(), sequentialAgent);
+
+        // 设置上下文
+        dynamicContext.setSequentialAgent(sequentialAgent);
+
+        // 注册到Spring容器
+        registerBean(agentWorkflow.getName(), SequentialAgent.class, sequentialAgent);
+
+        return router(requestParamter, dynamicContext);
+    }
+
+    @Override
+    public StrategyHandler<ArmoryCommandEntity, DefaultArmoryFactory.DynamicContext, AiAgentRegisterVO> get(ArmoryCommandEntity requestParameter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
+        return runnerNode;
+    }
+}
