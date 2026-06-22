@@ -2,6 +2,95 @@
 
 > 每次完成一条指令/一次修改，立刻在此追加记录（最新在上）。
 
+## Skills 工具装配支持 ✅（2026-06-21）
+
+**新增/修改文件**：
+- `pom.xml`（根）：dependencyManagement 新增 `org.springaicommunity:spring-ai-agent-utils:0.4.2`
+- `agent-scaffold-domain/pom.xml`：引入 `spring-ai-agent-utils` 依赖
+- `AiAgentConfigTableVO.java`：`ChatModel` 内新增 `Skill` 内部类（`resource` / `directory` 两个字段）和 `skillList` 字段
+- `ChatModelNode.java`：实现 `ResourceLoaderAware`，在 MCP 装配之后追加 skills 装配逻辑
+
+**使用方式**：在 agent 的 `chat-model` 配置下加 `skill-list`：
+
+```yaml
+chat-model:
+  model: deepseek-v4-flash
+  tool-mcp-list: []
+  skill-list:
+    - resource: classpath:skills/my-skill.md   # classpath 资源加载
+    - directory: /opt/agent/skills/            # 绝对路径目录扫描
+```
+
+所有 skill 合并为一个 `SkillsTool` ToolCallback 注册到 ChatModel，Agent 运行时可通过该工具按名称调用具体 skill 内容。
+
+## Nginx 静态页面实现 ✅（2026-06-21）
+
+**新增/修改文件**：`docs/dev-ops/nginx/html/login.html`、`docs/dev-ops/nginx/html/index.html`
+
+按时序图完整实现两个静态页面：
+
+**login.html**
+- admin/admin 演示登录校验
+- 登录成功写 cookie `ai_agent_login=admin`（有效期 1 天），跳转 index.html
+- 回车触发登录
+
+**index.html**
+- 初始化时校验 cookie `ai_agent_login`，未登录跳回 login.html
+- 读取 `js/config.js` 中 `window.APP_CONFIG.API_BASE`（默认 `http://127.0.0.1:8091`）
+- 侧边栏调用 `GET /api/v1/query_ai_agent_config_list` 加载智能体列表
+- 点击智能体后可新建会话（`POST /api/v1/create_session`）或复用 currentSessionId
+- 输入框 Enter 发送，Shift+Enter 换行；调用 `POST /api/v1/chat`
+- 服务不可达/CORS 失败时弹窗提示，显示当前 API_BASE，提供"重试"按钮
+
+## Session 失效自动重建修复 ✅（2026-06-21）
+
+**根因**：ADK 使用 `InMemoryRunner`，会话仅存内存。服务重启后内存清空，但前端 `currentSessionId` 变量保留旧值，跳过 `create_session` 直接调 `/chat`，ADK 抛 `Session not found: <id> for user <userId>`，前端显示"服务不可达"。
+
+**修复文件**
+- `ChatService.java`（`handleMessage` + `handleMessageStream`）：`runner.runAsync` 外包 try-catch，捕获 `IllegalArgumentException`（Session not found），自动重建 session 并更新 `userSessions` 缓存后重试，对调用方透明
+- `index.html`（`doChat`）：`/chat` 返回非 0000 时将 `currentSessionId = null`，下次 `sendMessage` 重走 `ensureSession()` 创建新 session，不会再复用失效 sessionId
+
+**验证**：`mvn compile` BUILD SUCCESS（全 6 模块）
+
+## Nginx 静态页面补全 ✅（2026-06-21）
+
+**新增文件**
+- `docs/dev-ops/nginx/html/js/config.js`：`window.APP_CONFIG.API_BASE` 配置，默认 `http://127.0.0.1:8091`；`index.html` 通过 `<script src="js/config.js">` 引用，文件不存在会导致 404 中断初始化流程
+- `docs/dev-ops/nginx/nginx.conf`：Nginx 配置，`root html`，访问 `/` 302 跳转 `login.html`；`/api/` 反向代理到 `host.docker.internal:8091`（Spring Boot）
+
+**完整登录流**
+1. 浏览器访问 `http://localhost/` → Nginx 302 → `login.html`
+2. 输入 admin/admin → 写 cookie `ai_agent_login=admin`（1天）→ 跳转 `index.html`
+3. `index.html` 初始化时读 cookie，未登录跳回 `login.html`；登录后加载智能体列表 → 选择智能体 → 对话
+
+## 全项目编译修复 ✅（2026-06-21）
+
+**修复文件**：`agent-scaffold-api/pom.xml`
+- 新增 `spring-webmvc` 依赖：`IAgentService` 接口引用 `ResponseBodyEmitter`（包路径 `org.springframework.web.servlet.mvc.method.annotation`），但 api 模块原无 spring-webmvc，导致编译失败；版本由 `spring-boot-starter-parent` 统一管理，无需指定
+
+**验证**：`mvn compile` 全 6 模块 BUILD SUCCESS
+
+## AgentServiceController 修复 + HTTP 接口测试 ✅（2026-06-21）
+
+**修复文件**：`trigger/http/AgentServiceController.java`
+
+5 处错误全部修复：
+1. **补全所有 import**：`IAgentService / IChatService / dto.* / Response / AiAgentConfigTableVO / ResponseCode / AppException / @Resource / @Slf4j / @RestController 等`
+2. **补声明 `implements IAgentService`**：类声明中漏写，导致所有 `@Override` 报错
+3. **`createSession` GET → POST**：`@RequestBody` 不能配合 GET 请求，改为 POST
+4. **修复 `createSession` catch 日志**：copy-paste 遗留的"查询智能体配置列表异常"改为"创建会话异常"
+5. **`chatStream` 补 sessionId 空判断**：与 `chat` 接口一致，sessionId 为空时自动创建会话，避免 `runner.runAsync` NPE
+
+**新增文件**：`app/src/test/java/cn/wjagent/ai/test/app/AgentServiceControllerTest.java`
+
+5 个测试用例，使用 `@SpringBootTest + @AutoConfigureMockMvc`：
+- `test_queryAiAgentConfigList`：GET 接口，不依赖 AI，读 YAML 配置即可
+- `test_createSession`：POST 创建会话，断言返回成功码 + sessionId
+- `test_createSession_agentNotFound`：传不存在 agentId，断言返回 E0001
+- `test_chat`：POST 阻塞式对话（需 AI 凭证）
+- `test_chatStream`：POST 流式对话（需 AI 凭证）
+- `test_chat_withExistingSession`：先创建 session，再用 sessionId 发起对话
+
 ## ChatService 对话层修复 ✅（2026-06-21）
 
 **新增文件**（用户添加，本次修复编译错误）

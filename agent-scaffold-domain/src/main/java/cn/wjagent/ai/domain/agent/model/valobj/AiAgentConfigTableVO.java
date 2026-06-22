@@ -70,6 +70,15 @@ public class AiAgentConfigTableVO {
 
             private String model;
             private List<ToolMcp> toolMcpList;
+            private List<Skill> skillList;
+
+            @Data
+            public static class Skill {
+                /** Spring resource path, e.g. classpath:skills/xxx.md */
+                private String resource;
+                /** Absolute directory path to scan for .md skill files */
+                private String directory;
+            }
 
             @Data
             public static class ToolMcp {

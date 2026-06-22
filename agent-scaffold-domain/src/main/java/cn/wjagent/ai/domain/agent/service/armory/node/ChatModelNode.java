@@ -10,11 +10,14 @@ import cn.wjagent.ai.domain.agent.service.armory.factory.matter.mcp.client.ToolM
 import cn.wjagent.ai.domain.agent.service.armory.factory.matter.mcp.client.factory.DefaultMcpClientFactory;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springaicommunity.agent.tools.SkillsTool;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.context.ResourceLoaderAware;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -24,13 +27,20 @@ import java.util.concurrent.TimeoutException;
 
 @Service
 @Slf4j
-public class ChatModelNode extends AbstractArmorySupport {
+public class ChatModelNode extends AbstractArmorySupport implements ResourceLoaderAware {
 
     @Resource
     private AgentNode agentNode;
 
     @Resource
     private DefaultMcpClientFactory defaultMcpClientFactory;
+
+    private ResourceLoader resourceLoader;
+
+    @Override
+    public void setResourceLoader(ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
+    }
 
     @Override
     protected AiAgentRegisterVO doApply(ArmoryCommandEntity requestParamter, DefaultArmoryFactory.DynamicContext dynamicContext) throws Exception {
@@ -51,6 +61,21 @@ public class ChatModelNode extends AbstractArmorySupport {
                 ToolCallback[] toolCallbacks = toolMcpCreateService.buildToolCallback(toolMcp);
                 toolCallbackList.addAll(List.of(toolCallbacks));
             }
+        }
+
+        // 构建 skills 工具
+        List<AiAgentConfigTableVO.Module.ChatModel.Skill> skillList = chatModelConfig.getSkillList();
+        if (skillList != null && !skillList.isEmpty()) {
+            SkillsTool.Builder skillsBuilder = SkillsTool.builder();
+            for (AiAgentConfigTableVO.Module.ChatModel.Skill skill : skillList) {
+                if (skill.getResource() != null) {
+                    skillsBuilder.addSkillsResource(resourceLoader.getResource(skill.getResource()));
+                } else if (skill.getDirectory() != null) {
+                    skillsBuilder.addSkillsDirectory(skill.getDirectory());
+                }
+            }
+            toolCallbackList.add(skillsBuilder.build());
+            log.info("Ai Agent 装配操作 - Skills 已加载，数量: {}", skillList.size());
         }
 
         ChatModel chatModel = OpenAiChatModel.builder()

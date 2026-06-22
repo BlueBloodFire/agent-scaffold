@@ -23,6 +23,10 @@
             <artifactId>spring-ai-mcp</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springaicommunity</groupId>
+            <artifactId>spring-ai-agent-utils</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.google.adk</groupId>
             <artifactId>google-adk</artifactId>
         </dependency>
