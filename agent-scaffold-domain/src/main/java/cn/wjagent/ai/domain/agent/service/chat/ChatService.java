@@ -8,6 +8,7 @@ import cn.wjagent.ai.domain.agent.service.IChatService;
 import cn.wjagent.ai.domain.agent.service.armory.factory.DefaultArmoryFactory;
 import cn.wjagent.ai.types.enums.ResponseCode;
 import cn.wjagent.ai.types.exception.AppException;
+import com.google.adk.agents.RunConfig;
 import com.google.adk.events.Event;
 import com.google.adk.runner.InMemoryRunner;
 import com.google.adk.sessions.Session;
@@ -61,9 +62,10 @@ public class ChatService implements IChatService {
 
         String appName = aiAgentRegisterVO.getAppName();
         InMemoryRunner runner = aiAgentRegisterVO.getRunner();
+        String key = agentId + ":" + userId;
 
-        return userSessions.computeIfAbsent(userId, uid -> {
-            Session session = runner.sessionService().createSession(appName, uid)
+        return userSessions.computeIfAbsent(key, k -> {
+            Session session = runner.sessionService().createSession(appName, userId)
                     .blockingGet();
             return session.id();
         });
@@ -92,10 +94,12 @@ public class ChatService implements IChatService {
             throw new AppException(ResponseCode.E0001.getCode());
         }
 
+        String appName = aiAgentRegisterVO.getAppName();
         InMemoryRunner runner = aiAgentRegisterVO.getRunner();
-
         Content userMsg = Content.fromParts(Part.fromText(message));
-        Flowable<Event> events = runner.runAsync(userId, sessionId, userMsg);
+
+        Session session = resolveSession(runner, appName, agentId, userId, sessionId);
+        Flowable<Event> events = runner.runAsync(session, userMsg, RunConfig.builder().build());
 
         List<String> outputs = new ArrayList<>();
         events.blockingForEach(event -> outputs.add(event.stringifyContent()));
@@ -111,10 +115,12 @@ public class ChatService implements IChatService {
             throw new AppException(ResponseCode.E0001.getCode());
         }
 
+        String appName = aiAgentRegisterVO.getAppName();
         InMemoryRunner runner = aiAgentRegisterVO.getRunner();
-
         Content userMsg = Content.fromParts(Part.fromText(message));
-        return runner.runAsync(userId, sessionId, userMsg);
+
+        Session session = resolveSession(runner, appName, agentId, userId, sessionId);
+        return runner.runAsync(session, userMsg, RunConfig.builder().build());
     }
 
     @Override
@@ -159,6 +165,22 @@ public class ChatService implements IChatService {
         events.blockingForEach(event -> outputs.add(event.stringifyContent()));
 
         return outputs;
+    }
+
+    /**
+     * Look up session by sessionId; if missing (e.g. server restart), create a new one and
+     * update userSessions so subsequent calls for this (agentId, userId) use the new id.
+     */
+    private Session resolveSession(InMemoryRunner runner, String appName,
+                                   String agentId, String userId, String sessionId) {
+        Session session = runner.sessionService()
+                .getSession(appName, userId, sessionId, java.util.Optional.empty())
+                .blockingGet();
+        if (session == null) {
+            session = runner.sessionService().createSession(appName, userId).blockingGet();
+            userSessions.put(agentId + ":" + userId, session.id());
+        }
+        return session;
     }
 
 }

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Scaffold</title>
+  <script src="js/config.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── 侧边栏 ── */
+    #sidebar {
+      width: 240px;
+      background: #fff;
+      border-right: 1px solid #e8e8e8;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 12px;
+    }
+    #sidebar h3 { font-size: 13px; color: #888; margin-bottom: 10px; padding-left: 4px; }
+    #agentList { list-style: none; flex: 1; overflow-y: auto; }
+    #agentList li {
+      padding: 9px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 4px;
+      transition: background .15s;
+    }
+    #agentList li:hover { background: #f5f5f5; }
+    #agentList li.active { background: #e6f0ff; color: #1677ff; font-weight: 500; }
+    #agentList li .desc { font-size: 11px; color: #aaa; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-footer { font-size: 12px; color: #bbb; text-align: center; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+
+    /* ── 主区域 ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #topbar {
+      background: #fff;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #topbar .agent-name { font-size: 16px; font-weight: 600; color: #1a1a1a; flex: 1; }
+    #topbar .session-id { font-size: 12px; color: #bbb; }
+    #newSessionBtn {
+      padding: 6px 14px;
+      background: #1677ff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    #newSessionBtn:hover { background: #4096ff; }
+
+    /* ── 消息区 ── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .msg { display: flex; gap: 10px; }
+    .msg.user { flex-direction: row-reverse; }
+    .bubble {
+      max-width: 65%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.assistant .bubble { background: #fff; border: 1px solid #e8e8e8; color: #1a1a1a; }
+    .msg.user .bubble { background: #1677ff; color: #fff; }
+    .msg .avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: #d9e8ff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .msg.user .avatar { background: #1677ff; color: #fff; }
+    .empty-hint { text-align: center; color: #bbb; font-size: 14px; margin: auto; }
+
+    /* ── 输入区 ── */
+    #inputArea {
+      background: #fff;
+      border-top: 1px solid #e8e8e8;
+      padding: 12px 20px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    #msgInput {
+      flex: 1;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      min-height: 40px;
+      max-height: 120px;
+      font-family: inherit;
+      line-height: 1.5;
+      transition: border-color .2s;
+    }
+    #msgInput:focus { border-color: #4096ff; }
+    #sendBtn {
+      padding: 9px 20px;
+      background: #1677ff;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      height: 40px;
+    }
+    #sendBtn:disabled { background: #b0c8f0; cursor: not-allowed; }
+    #sendBtn:not(:disabled):hover { background: #4096ff; }
+
+    /* ── 错误弹窗 ── */
+    #overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #overlay.show { display: flex; }
+    #errorBox {
+      background: #fff;
+      border-radius: 8px;
+      padding: 28px 32px;
+      width: 380px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    }
+    #errorBox h3 { color: #ff4d4f; margin-bottom: 10px; }
+    #errorBox p { font-size: 13px; color: #555; line-height: 1.7; margin-bottom: 16px; }
+    #errorBox code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+    .err-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .err-actions button {
+      padding: 6px 16px; border-radius: 4px; border: none; cursor: pointer; font-size: 13px;
+    }
+    #retryBtn { background: #1677ff; color: #fff; }
+    #retryBtn:hover { background: #4096ff; }
+    #closeErrBtn { background: #f5f5f5; color: #555; }
+    #closeErrBtn:hover { background: #e8e8e8; }
+  </style>
+</head>
+<body>
+
+<!-- 侧边栏：智能体列表 -->
+<div id="sidebar">
+  <h3>智能体</h3>
+  <ul id="agentList"><li style="color:#bbb;font-size:13px;padding:8px">加载中...</li></ul>
+  <div class="sidebar-footer" id="userInfo"></div>
+</div>
+
+<!-- 主内容 -->
+<div id="main">
+  <div id="topbar">
+    <span class="agent-name" id="currentAgentName">请选择智能体</span>
+    <span class="session-id" id="currentSessionId"></span>
+    <button id="newSessionBtn" onclick="newSession()">新建会话</button>
+  </div>
+
+  <div id="messages">
+    <p class="empty-hint" id="emptyHint">选择左侧智能体，开始对话</p>
+  </div>
+
+  <div id="inputArea">
+    <textarea id="msgInput" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
+    <button id="sendBtn" onclick="sendMessage()" disabled>发送</button>
+  </div>
+</div>
+
+<!-- 错误弹窗 -->
+<div id="overlay">
+  <div id="errorBox">
+    <h3>服务不可达</h3>
+    <p id="errorDetail"></p>
+    <div class="err-actions">
+      <button id="closeErrBtn" onclick="closeError()">关闭</button>
+      <button id="retryBtn" onclick="retryLast()">重试</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 配置 ──────────────────────────────────────────────
+var API_BASE = (window.APP_CONFIG && window.APP_CONFIG.API_BASE) || 'http://127.0.0.1:8091';
+
+// ── 状态 ─────────────────────────────────────────────
+var currentAgentId = null;
+var currentUserId = null;
+var currentSessionId = null;
+var lastAction = null; // 用于重试
+var agents = [];
+
+// ── cookie 工具 ───────────────────────────────────────
+function getCookie(name) {
+  var m = document.cookie.match('(?:^|;)\\s*' + name + '=([^;]*)');
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+// ── 初始化 ────────────────────────────────────────────
+(function init() {
+  var userId = getCookie('ai_agent_login');
+  if (!userId) {
+    window.location.href = 'login.html';
+    return;
+  }
+  currentUserId = userId;
+  document.getElementById('userInfo').textContent = '当前用户：' + userId;
+  loadAgentList();
+})();
+
+// ── 加载智能体列表 ────────────────────────────────────
+function loadAgentList() {
+  fetch(API_BASE + '/api/v1/query_ai_agent_config_list')
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.code !== '0000') throw new Error(res.info || '接口异常');
+      agents = res.data || [];
+      renderAgentList(agents);
+    })
+    .catch(function(err) {
+      showError('加载智能体列表失败：' + err.message + '<br>请确认后端服务已启动，并检查 <code>js/config.js</code> 中 API_BASE（当前：<code>' + API_BASE + '</code>）是否正确。', function() { loadAgentList(); });
+    });
+}
+
+function renderAgentList(list) {
+  var ul = document.getElementById('agentList');
+  if (!list.length) { ul.innerHTML = '<li style="color:#bbb;font-size:13px;padding:8px">暂无智能体</li>'; return; }
+  ul.innerHTML = '';
+  list.forEach(function(a) {
+    var li = document.createElement('li');
+    li.innerHTML = '<div>' + esc(a.agentName) + '</div>' +
+      (a.agentDesc ? '<div class="desc">' + esc(a.agentDesc) + '</div>' : '');
+    li.onclick = function() { selectAgent(a, li); };
+    ul.appendChild(li);
+  });
+}
+
+// ── 选择智能体 ────────────────────────────────────────
+function selectAgent(agent, li) {
+  document.querySelectorAll('#agentList li').forEach(function(el) { el.classList.remove('active'); });
+  li.classList.add('active');
+  currentAgentId = agent.agentId;
+  document.getElementById('currentAgentName').textContent = agent.agentName;
+  currentSessionId = null;
+  document.getElementById('currentSessionId').textContent = '';
+  clearMessages();
+  document.getElementById('sendBtn').disabled = false;
+}
+
+// ── 新建会话 ──────────────────────────────────────────
+function newSession() {
+  if (!currentAgentId) { alert('请先选择智能体'); return; }
+  currentSessionId = null;
+  document.getElementById('currentSessionId').textContent = '';
+  clearMessages();
+}
+
+function ensureSession() {
+  if (currentSessionId) return Promise.resolve(currentSessionId);
+  return fetch(API_BASE + '/api/v1/create_session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agentId: currentAgentId, userId: currentUserId })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.code !== '0000') throw new Error(res.info || '创建会话失败');
+    currentSessionId = res.data.sessionId;
+    document.getElementById('currentSessionId').textContent = 'Session: ' + currentSessionId;
+    return currentSessionId;
+  });
+}
+
+// ── 发送消息 ──────────────────────────────────────────
+function sendMessage() {
+  if (!currentAgentId) { alert('请先选择智能体'); return; }
+  var input = document.getElementById('msgInput');
+  var text = input.value.trim();
+  if (!text) return;
+
+  appendMessage('user', text);
+  input.value = '';
+  autoResize(input);
+  document.getElementById('sendBtn').disabled = true;
+  document.getElementById('emptyHint') && (document.getElementById('emptyHint').style.display = 'none');
+
+  lastAction = function() { doChat(text); };
+
+  ensureSession()
+    .then(function(sid) { return doChat(text); })
+    .catch(function(err) { onApiError(err, text); });
+}
+
+function doChat(text) {
+  return fetch(API_BASE + '/api/v1/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      agentId: currentAgentId,
+      userId: currentUserId,
+      sessionId: currentSessionId,
+      message: text
+    })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    if (res.code !== '0000') {
+      currentSessionId = null; // 清除失效 session，下次自动重建
+      throw new Error(res.info || '对话请求失败');
+    }
+    appendMessage('assistant', res.data.content || '');
+    document.getElementById('sendBtn').disabled = false;
+  })
+  .catch(function(err) { onApiError(err, text); });
+}
+
+function onApiError(err, originalText) {
+  document.getElementById('sendBtn').disabled = false;
+  showError(
+    '请求失败：' + err.message +
+    '<br><br>请确认：<br>① 后端服务已启动<br>② <code>js/config.js</code> 中 API_BASE 正确（当前：<code>' + API_BASE + '</code>）<br>③ 无跨域（CORS）限制',
+    function() {
+      appendMessage('user', originalText);
+      doChat(originalText);
+    }
+  );
+}
+
+// ── 消息渲染 ──────────────────────────────────────────
+function appendMessage(role, text) {
+  var hint = document.getElementById('emptyHint');
+  if (hint) hint.style.display = 'none';
+
+  var container = document.getElementById('messages');
+  var div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML =
+    '<div class="avatar">' + (role === 'user' ? '我' : 'AI') + '</div>' +
+    '<div class="bubble">' + esc(text) + '</div>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function clearMessages() {
+  var c = document.getElementById('messages');
+  c.innerHTML = '<p class="empty-hint" id="emptyHint">选择左侧智能体，开始对话</p>';
+}
+
+// ── 错误弹窗 ──────────────────────────────────────────
+var _retryFn = null;
+function showError(html, retryFn) {
+  document.getElementById('errorDetail').innerHTML = html;
+  _retryFn = retryFn || null;
+  document.getElementById('overlay').classList.add('show');
+}
+function closeError() { document.getElementById('overlay').classList.remove('show'); }
+function retryLast() {
+  closeError();
+  if (_retryFn) _retryFn();
+}
+
+// ── 工具 ─────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+document.getElementById('msgInput').addEventListener('input', function() { autoResize(this); });
+document.getElementById('msgInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+</script>
+</body>
+</html>
